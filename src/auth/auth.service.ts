@@ -74,7 +74,8 @@ export class AuthService {
         throw new BadRequestException("Email exist");
       }
       const user = await this.userService.createUser(signUpDto);
-      return { email : user.email, otp : user.otps[0].code}
+      const otp = await this.userService.findOTPbyUser(user);
+      return { email : user.email, otp : otp}
     }
     
     async resertPassword(email: string){

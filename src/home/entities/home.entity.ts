@@ -12,6 +12,8 @@ export class Home {
     isActive : boolean;
     @Column({nullable: true})
     wifi : string;
+    @Column({nullable : true})
+    floors : number;
     @ManyToOne(() => User, user=> user.owner_homes ,{nullable : true})
     @JoinColumn({name : "owner_id"})
     owner : User;
@@ -20,7 +22,7 @@ export class Home {
     guests : User[];
     @OneToMany(()=>Device, (device)=>device.home)
     devices : Device[];
-    // @OneToMany(() => Room , room => room.home)
-    // rooms : Room[]
+    @OneToMany(() => Room , room => room.home)
+    rooms : Room[];
 }
 

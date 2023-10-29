@@ -4,9 +4,11 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 @Entity()
 export class Room {
     @PrimaryGeneratedColumn()
-    id : number
+    id : number;
     @Column()
-    floor : number
+    floor : number;
+    @Column()
+    name : string;
     @ManyToOne(() => Home, (home) => home.devices,{nullable : true})
     home : Home;
 }
