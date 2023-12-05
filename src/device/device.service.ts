@@ -1,80 +1,53 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { CreateDeviceDto } from './dto/create-device.dto';
-import { UpdateDeviceDto } from './dto/update-device.dto';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Device } from './entities/device.entity';
 import { TypeOrmCrudService } from '@dataui/crud-typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
+import { ClientProxy, Ctx, MessagePattern, MqttContext, Payload } from '@nestjs/microservices';
+import { RegisterDeviceDto } from './dto/register-device.dto';
 import { HomeService } from 'src/home/home.service';
-import { HttpService } from '@nestjs/axios';
-import { GetConnectionDto } from './dto/connection.dto';
+import { NotificationService } from 'src/notification/notification.service';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class DeviceService extends TypeOrmCrudService<Device> {
   constructor(@InjectRepository(Device) public readonly deviceRepositoty : Repository<Device>,
-  private readonly httpService: HttpService,
+  @Inject("DEVICE_SERVICE") private deviceClient: ClientProxy,
   private readonly homeService : HomeService) {
     super(deviceRepositoty);
   }
-  async addDevice(createDeviceDto: CreateDeviceDto, homeId : number , hostId : number) {
-    const home = await this.homeService.findOneByHomeId(homeId);
-    if(!home) {
-      throw new InternalServerErrorException('Home not found');
-    }
-    if(home.owner.id != hostId){
-      throw new InternalServerErrorException('User is not a host');
-    }
-    const newdevice = await this.deviceRepositoty.create({
-      ...createDeviceDto,
-      status : false,
-      isConnecting : false,
-      home,
-    });
-    return this.deviceRepositoty.save(newdevice);
+  async sendMessage() {
+    const message = "hello";
+    this.deviceClient.emit('your_topic', message); // Replace 'your_topic' with your desired topic
   }
-  async updateInfoDevice(updateDeviceDto: UpdateDeviceDto, deviceId : number , hostId : number) {
-    const device = await this.deviceRepositoty.findOne({relations : ['home','home.users'],where : {id : deviceId}});
-    if(!device) {
-      throw new InternalServerErrorException('Device not found');
-    } 
-    if (device.home.owner.id != hostId){
-      throw new InternalServerErrorException('User is not a host');
-    }
-    else{
-      return this.deviceRepositoty.save({...device, ...updateDeviceDto});
-    }
+  @MessagePattern('register-device/+')
+  async addDevcieToHome(@Payload() data: string, @Ctx() context: MqttContext){
+    const topic = context.getTopic();
+    const homeId = topic.split('/')[1]; 
+    const deviceId = data;
+  // Process device registration for the given homeId
+  console.log(`Registering device ${deviceId} for homeId: ${homeId}`);
   }
-  async changeStatusDevice(deviceId : number , userId : number) {
-    const device = await this.deviceRepositoty.findOne({relations : ['home','home.users'],where : {id : deviceId}});
-    if(!device) {
-      throw new InternalServerErrorException('Device not found');
-    } 
-    if (device.home.guests.filter((user) => user.id === userId).length === 0 || device.home.owner.id != userId){
-      throw new InternalServerErrorException('User is not a host');
+  @Transactional()
+  async registerDevice(registerDeviceDto : RegisterDeviceDto){
+    const device = await this.deviceRepositoty.findOne({where : {id : registerDeviceDto.deviceId}});
+    const room = await this.homeService.roomService.roomRepository.findOne({where : {id : registerDeviceDto.roomId}, relations : ['home.owner']});
+    device.room = room;
+    const user_id = room.home.owner.id;
+    const tokens = await this.homeService.userService.queryUserDeviceLogin(user_id);
+    const title = "add device";
+    const body = device.toString();
+    const notification = await this.homeService.notificationService.notificationRepository.create({
+      title : title,
+      body : body
+    })
+    await this.homeService.notificationService.notificationRepository.save(notification);
+    if(tokens.deviceTokens){
+      await this.homeService.notificationService.sendNotificationToMutilToken(tokens.deviceTokens,title,body);
     }
-    else{
-      return this.deviceRepositoty.save({...device, status : !device.status});
+    await this.deviceRepositoty.save(device);
+    return {
+      result : true
     }
-  }
-  async getConnectionDevices(getConnection : GetConnectionDto) {
-    const device = await this.deviceRepositoty.findOne({where : {name : getConnection.name}});
-    if(!device){
-      const newDevice = await this.deviceRepositoty.create({
-        name : getConnection.name,
-        description : "new device connected",
-        status : false,
-        home : await this.homeService.homeRepositoty.findOne({where : {wifi : getConnection.wifi}}),
-        isConnecting : true,
-      })
-      return await this.deviceRepositoty.save(newDevice);
-    }
-    device.isConnecting = true
-    return await this.deviceRepositoty.save(device);
-  }
-  async getAllStatus(wifi : string, name : string){
-    const home = await this.homeService.homeRepositoty.findOne({relations : ['devices'],where : {wifi : wifi}});
-    const device = await home.devices.filter((device) => device.name === name);
-    return device[0].status;
   }
 }

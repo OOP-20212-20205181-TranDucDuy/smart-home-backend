@@ -6,12 +6,14 @@ import { OTP } from "./otp.entity";
 import { Profile } from "./profile.entity";
 import { profile } from "console";
 import { Home } from "src/home/entities/home.entity";
-
-
+import { UUID } from "crypto";
+import { HomeMember } from "src/home/entities/home_member.entity";
+import { DeviceToken } from "src/auth/entity/deviceToken.entity";
+import { Notification} from "src/notification/entities/notification.entity";
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn()
-    id : number;
+    @PrimaryGeneratedColumn("uuid")
+    id : UUID;
     @Column({unique : true})
     email : string;
     @Column()
@@ -28,14 +30,18 @@ export class User {
     //     this.password = await hashPassword(this.password);
     // }
     
-    @OneToMany(() => OTP, (otp) => otp.user)
+    @OneToMany(() => OTP, (otp) => otp.user , { cascade: true, onDelete: 'CASCADE' })
     otps : OTP[]
-    @OneToMany(() => Auth, (auth) => auth.user)
+    @OneToMany(() => Auth, (auth) => auth.user , { cascade: true, onDelete: 'CASCADE' })
     auths : Auth[];
-    @OneToOne(() => Profile , (profile) => profile.user)
+    @OneToOne(() => Profile , (profile) => profile.user , { cascade: true, onDelete: 'CASCADE' })
     profile : Profile
-    @ManyToMany(() => Home, (home) => home.guests)
-    homes : Home[]
-    @OneToMany(() => Home,(home) => home.owner)
+    @OneToMany(() => HomeMember, (home_member) => home_member.user , { cascade: true, onDelete: 'CASCADE' })
+    joined_homes : HomeMember[];
+    @OneToMany(() => Home,(home) => home.owner , { cascade: true, onDelete: 'CASCADE' })
     owner_homes : Home[]
+    @OneToMany(() => DeviceToken, (deviceToken) => deviceToken.user,{nullable : true  ,  cascade: true, onDelete: 'CASCADE' })
+    deviceTokens : DeviceToken[];
+    @OneToMany(() => Notification, (notification) => notification.user_receive)
+    notifications : Notification[];
 }

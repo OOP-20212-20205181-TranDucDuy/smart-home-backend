@@ -8,6 +8,7 @@ import { Role } from '../constant/enum';
 import { Roles } from './entities/roles.decorater';
 import { HttpAuthGuard } from '../auth/guard/auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UUID } from 'node:crypto';
 @ApiTags("user")
 @Controller('user')
 @UseGuards(HttpAuthGuard)
@@ -17,7 +18,7 @@ export class UserController {
   private readonly logger = new Logger(UserController.name);
   @Get('/:id')
   @Roles(Role.ADMIN)
-  async findById(@Param('id') id : number) {
+  async findById(@Param('id') id : UUID) {
     this.logger.log("Calling get id request");
     return await this.userService.findById(id);
   }
@@ -33,7 +34,7 @@ export class UserController {
   }
   @Roles(Role.ADMIN)
   @Patch("/:id")
-  async updateUserProfile(@Param('id') id : number, @Body() updateProfileDto : UpdateProfileDto) {
+  async updateUserProfile(@Param('id') id : UUID, @Body() updateProfileDto : UpdateProfileDto) {
     return await this.userService.updateProfile(updateProfileDto,id);
   }
   @Roles(Role.USER)

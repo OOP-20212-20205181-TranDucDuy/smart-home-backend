@@ -1,6 +1,6 @@
 import { BeforeInsert, Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { User } from "./user.entity";
-import { v4 } from "uuid"
+import { createOTP } from "src/utils/ids";
 @Entity()
 export class OTP{
     @PrimaryGeneratedColumn()
@@ -13,6 +13,6 @@ export class OTP{
     user : User  
     @BeforeInsert()
     async save() {
-        this.code = v4();
+        this.code = createOTP();
     }
 }

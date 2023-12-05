@@ -14,15 +14,22 @@ import { User } from '../user/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Auth } from './entity/auth.entity';
 import { FindOptionsWhereProperty, Repository } from 'typeorm';
+import { UUID } from 'node:crypto';
+import { createPassword } from 'src/utils/ids';
+import { NotificationService } from 'src/notification/notification.service';
+import { DeviceToken } from './entity/deviceToken.entity';
+import { LogOutDto } from './dto/log-out.dto';
 
 @Injectable()
 export class AuthService {
     constructor(
       @InjectRepository(Auth) private readonly authRepository : Repository<Auth>,
+      @InjectRepository(DeviceToken) private readonly deviceTokenRepository : Repository<DeviceToken>,
       private readonly userService: UserService,
       private readonly jwtService: JwtService,
       private readonly configService: ConfigService,
       private readonly mailerService: MailerService,
+      private readonly notificationService: NotificationService,
     ) {}
     
     async createToken(user : User){
@@ -62,7 +69,23 @@ export class AuthService {
         //   throw new Error("Account is logged")
         // }
         const token = await this.createToken(user);
-        // const update_user = await this.userService.updateUserStatus(user.id,UserStatus.ON);
+        const lastDeviceLogin = await this.deviceTokenRepository.find({
+          where : {
+            deviceToken : logInDto.deviceTokenString,
+            isDelete : false
+          }
+        })
+        lastDeviceLogin.forEach( async (device) => {
+          device.isDelete = true
+          await this.deviceTokenRepository.save(device);
+        });
+        const deviceLogin = await this.deviceTokenRepository.create({
+          deviceToken : logInDto.deviceTokenString,
+          user : user,
+        })
+        await this.deviceTokenRepository.save(deviceLogin);
+        const notReadedNotifications = await this.notificationService.notificationRepository.find({where : {user_receive : user as FindOptionsWhereProperty<User>, isReaded : false}})
+        await this.notificationService.sendMultiMessageToMutilToken(notReadedNotifications, deviceLogin.deviceToken);
         return {...user,
           ...token
         }
@@ -80,7 +103,7 @@ export class AuthService {
     
     async resertPassword(email: string){
       const user = await this.userService.findOne(email);
-      const newPassword = v4();
+      const newPassword = createPassword();
       const otp = await this.userService.createOTP(user)
       if(user){  
         await this.mailerService.sendMail({
@@ -166,9 +189,12 @@ export class AuthService {
       }
     }
 
-    async logout(userId : number){
+    async logout(userId : UUID, logoutDto : LogOutDto){
       const user = await this.userService.findById(userId);
       await this.updateRefreshToken(user);
+      const deviceLogin = await this.deviceTokenRepository.findOne({where : {user : user as FindOptionsWhereProperty<User>,deviceToken : logoutDto.deviceToken}});
+      deviceLogin.isDelete = true;
+      await this.deviceTokenRepository.save(deviceLogin);
       return await this.userService.updateUserStatus(userId,UserStatus.OFF);
     }
     async updateRefreshToken(user : User){

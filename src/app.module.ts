@@ -19,7 +19,9 @@ import { WinstonModule } from 'nest-winston';
 import { HomeModule } from './home/home.module';
 import { DeviceModule } from './device/device.module';
 import { RoomModule } from './room/room.module';
-
+import { NotificationModule } from './notification/notification.module';
+import { DataSource } from 'typeorm';
+import { addTransactionalDataSource } from 'typeorm-transactional';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
@@ -28,6 +30,12 @@ import { RoomModule } from './room/room.module';
         ...configService.get<TypeOrmModuleOptions>('database'),
       }),
       inject: [ConfigService],
+      async dataSourceFactory(options) {
+        if (!options) {
+          throw new Error('Invalid options passed');
+        }
+        return addTransactionalDataSource(new DataSource(options));
+      },
     }),
     MailerModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
@@ -56,7 +64,8 @@ import { RoomModule } from './room/room.module';
     MinioClientModule,
     HomeModule,
     DeviceModule,
-    RoomModule],
+    RoomModule,
+    NotificationModule],
   controllers: [AppController],
   providers: [Logger,
     {

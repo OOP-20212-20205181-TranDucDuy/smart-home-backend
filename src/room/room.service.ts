@@ -5,16 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Home } from 'src/home/entities/home.entity';
 import { Room } from './entities/room.entity';
+import { UUID } from 'crypto';
 
 @Injectable()
 export class RoomService {
-  constructor(@InjectRepository(Room) public readonly roomRepository : Repository<Room>){
-  }
-  async createRoom(createRoomsDto :CreateRoomDto[]){
-    const listRoom : Room[]= [];
-      createRoomsDto.forEach(async createRoomDto => {
-         await listRoom.push(this.roomRepository.create(createRoomDto));
-      });
-      return listRoom;
+  constructor(@InjectRepository(Room) public readonly roomRepository : Repository<Room>,){
   }
 }

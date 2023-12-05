@@ -5,6 +5,7 @@ import { SignUpDto } from './dto/sign-up.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { HttpAuthGuard } from './guard/auth.guard';
 import { ApiTags } from '@nestjs/swagger';
+import { LogOutDto } from './dto/log-out.dto';
 @ApiTags("auth")
 @Controller('auth')
 export class AuthController {
@@ -49,9 +50,9 @@ export class AuthController {
   }
   @UseGuards(HttpAuthGuard)
   @Get('logout')
-  async logout(@Req() request : Request){
+  async logout(@Req() request : Request, logoutDto : LogOutDto){
     this.logger.log("Calling log out api");
     const userId = request['user'].id;
-    return await this.authService.logout(userId);
+    return await this.authService.logout(userId,logoutDto);
   }
 }

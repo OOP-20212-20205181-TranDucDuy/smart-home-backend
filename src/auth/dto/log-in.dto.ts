@@ -7,4 +7,6 @@ export class LogInDto {
 
     @IsNotEmpty()
     password : string;
+
+    deviceTokenString : string;
 }

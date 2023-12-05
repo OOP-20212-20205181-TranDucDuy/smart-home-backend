@@ -13,6 +13,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { skip } from 'node:test';
 import { MailerService } from '@nestjs-modules/mailer';
 import { verificationEmail } from 'src/constant/email-template.constant';
+import { UUID } from 'crypto';
+import { Home } from 'src/home/entities/home.entity';
 
 @Injectable()
 export class UserService {
@@ -44,7 +46,7 @@ export class UserService {
       otps : true,
     }})
   }
-  async findById(userId : number){
+  async findById(userId : UUID) : Promise<User>{
     return await this.userRepository.findOne({where :{id : userId},
       relations : {
         profile : true,
@@ -93,13 +95,13 @@ export class UserService {
     }
   }
   
-  async update(userId : number, user : User){
+  async update(userId : UUID, user : User){
     return this.userRepository.update({id : userId},user);
   }
-  async updatePassword(userId : number, password : string){
+  async updatePassword(userId : UUID, password : string){
     return this.userRepository.update({id : userId},{password : password});
   }
-  async updateUserStatus(userId : number , status : UserStatus){
+  async updateUserStatus(userId : UUID , status : UserStatus){
     return this.userRepository.update({id : userId},{status : status});
   }
   async findAllUser(page : number){
@@ -115,7 +117,7 @@ export class UserService {
   });
     return users;
   }
-  async updateProfile(updateProfileDto : UpdateProfileDto, userId : number){
+  async updateProfile(updateProfileDto : UpdateProfileDto, userId : UUID){
     const user = await this.findById(userId);
     if(!user){
       throw new InternalServerErrorException("user not in database")
@@ -132,5 +134,36 @@ export class UserService {
     return await this.profileRepository.update({user: user as FindOptionsWhere<User>}, {
       ...updateProfileDto
     })
+  }
+  async queryUserHomeList(user_id : UUID){
+    const user = await this.userRepository.findOne({where : {id : user_id}, relations : ["homes"]});
+    let homeList : Home[];
+    user.owner_homes.forEach(home => {
+      homeList.push(home);
+    });
+    return {
+      result : homeList
+    }
+  }
+  async queryUserDeviceLogin(user_id : UUID){
+    const user = await this.userRepository.findOne({where : {id : user_id}, relations : {deviceTokens :true}})
+    if(!user){
+      return {
+        result : false,
+        error_message : "User doesn't exist"
+      }
+    }
+
+    const tokens : string[] = [];
+    user.deviceTokens.forEach(deviceToken => {
+      if(deviceToken.isDelete === false){
+        tokens.push(deviceToken.deviceToken);
+      }
+    });
+    return {
+      result : true,
+      user : user,
+      deviceTokens :tokens,
+    }
   }
 }
