@@ -7,9 +7,10 @@ import { UserModule } from 'src/user/user.module';
 import { RoomModule } from 'src/room/room.module';
 import { HomeMember } from './entities/home_member.entity';
 import { NotificationModule } from 'src/notification/notification.module';
+import { DeviceModule } from 'src/device/device.module';
 
 @Module({
-  imports : [TypeOrmModule.forFeature([Home,HomeMember]), UserModule, RoomModule , NotificationModule],
+  imports : [TypeOrmModule.forFeature([Home,HomeMember]), UserModule, RoomModule , NotificationModule , DeviceModule],
   controllers: [HomeController],
   providers: [HomeService],
   exports : [HomeService],

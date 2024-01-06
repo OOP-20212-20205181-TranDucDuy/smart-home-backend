@@ -9,9 +9,10 @@ import { Roles } from 'src/user/entities/roles.decorater';
 import { GetConnectionDto } from './dto/connection.dto';
 import { HttpAuthGuard } from 'src/auth/guard/auth.guard';
 import { Ctx, MessagePattern, MqttContext, Payload } from '@nestjs/microservices';
-import { RegisterDeviceDto } from './dto/register-device.dto';
+import { v4 as uuidv4, parse as uuidParse } from 'uuid';
+import { UUID } from 'crypto';
 @Crud({
-  model: {
+  model: { 
     type: Device,
   },
   query : {
@@ -28,7 +29,7 @@ import { RegisterDeviceDto } from './dto/register-device.dto';
     }
   },
   routes : {
-    exclude : ['createManyBase', 'replaceOneBase', 'createOneBase', 'deleteOneBase' ,'updateOneBase' ],
+    exclude : ['createManyBase', 'replaceOneBase', 'createOneBase', 'deleteOneBase' ,'updateOneBase' , 'getOneBase' ],
     
   }
 })
@@ -45,13 +46,7 @@ export class DeviceController implements CrudController<Device> {
   ){
     return await this.base.getManyBase(req);
   }
-  @Override('getOneBase')
-  @Roles(Role.ADMIN)
-  async getOne(
-    @ParsedRequest() req: CrudRequest,
-  ) {
-    return this.base.getOneBase(req);
-  }
+
   @MessagePattern('add-device/+')
   async addDevice(@Payload() data: string) {
     console.log(data);
@@ -59,18 +54,26 @@ export class DeviceController implements CrudController<Device> {
       message : `${data}`
     };
   }
-  @MessagePattern('register-device/+')
-  async addDevcieToHome(@Payload() data: string, @Ctx() context: MqttContext){
+  @MessagePattern('roomId/+/deviceId/+/connect')
+  async getConnectFromDevice(@Payload() data: string, @Ctx() context: MqttContext){
     const topic = context.getTopic();
-    const homeId = topic.split('/')[1]; 
-    const deviceId = data;
-  // Process device registration for the given homeId
-  console.log(`Registering device ${deviceId} for homeId: ${homeId}`);
+    const [roomId, deviceId] = topic.split('/').slice(2, 4);
+    const id = uuidParse(deviceId);
+    return await this.service.connectDevice(id, data);
   }
-  @Post()
-  async registerDevice(@Body() registerDeviceDto : RegisterDeviceDto){
-    return await this.service.registerDevice(registerDeviceDto);
+  @MessagePattern('roomId/+/deviceId/+/value')
+  async getValue(@Payload() data: string, @Ctx() context: MqttContext){
+    const topic = context.getTopic();
+    const [roomId, deviceId] = topic.split('/').slice(2, 4);
+    const id = uuidParse(deviceId);
+    return await this.service.saveData(id,data);
   }
+  @UseGuards(HttpAuthGuard)
+  @Get('/:deviceId')
+  async loadDevice(@Param('deviceId') device_id : UUID){
+    return await this.service.loadDeviceData(device_id);
+  }
+
   // @Roles(Role.USER)
   // @UseGuards(HttpAuthGuard)
   // @Patch(':deviceId')

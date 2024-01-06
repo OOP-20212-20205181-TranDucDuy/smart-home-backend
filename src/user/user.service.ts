@@ -156,7 +156,7 @@ export class UserService {
 
     const tokens : string[] = [];
     user.deviceTokens.forEach(deviceToken => {
-      if(deviceToken.isDelete === false){
+      if(deviceToken.isDelete === false && deviceToken.deviceToken.length != 0){
         tokens.push(deviceToken.deviceToken);
       }
     });

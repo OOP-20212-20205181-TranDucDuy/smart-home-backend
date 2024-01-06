@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeviceModule } from 'src/device/device.module';
 
 @Module({
-  imports : [TypeOrmModule.forFeature([Room])],
+  imports : [TypeOrmModule.forFeature([Room]), DeviceModule],
   controllers: [RoomController],
   providers: [RoomService],
   exports : [RoomService]

@@ -19,6 +19,11 @@ import { NotificationService } from "src/notification/notification.service";
 import { Transactional } from "typeorm-transactional";
 import { title } from "process";
 import { MessagePattern } from "@nestjs/microservices";
+import { RegisterDeviceDto } from "./dto/request/register-device.dto";
+import { ControlDto } from "./dto/control.dto";
+import { convertValue } from "src/device/type/device.type";
+import { deviceCode } from "src/device/type/enum";
+
 export class HomeService extends TypeOrmCrudService<Home> {
   constructor(@InjectRepository(Home) public readonly homeRepositoty : Repository<Home>,
   @InjectRepository(HomeMember) public readonly homeMemberRepositoty : Repository<HomeMember>,
@@ -326,7 +331,7 @@ export class HomeService extends TypeOrmCrudService<Home> {
     await this.homeMemberRepositoty.save(new_home_member);
     const deviceTokens = response.deviceTokens; 
     const title = "join home";
-    const body = JSON.stringify(home.owner);
+    const body = JSON.stringify(home.owner); 
 
     const notification = await this.notificationService.notificationRepository.create({
       title,
@@ -482,19 +487,18 @@ export class HomeService extends TypeOrmCrudService<Home> {
   }
   async queryRoomDevices(home_id : UUID,room_id : UUID){
     const room = await this.roomService.roomRepository.findOne({where : {id : room_id}, relations : ["devices"]});
-    let devicesList : Device[];
-    room.devices.forEach(device => {
-          devicesList.push(device);
-        });
       return {
-        result : devicesList
+        result : room.devices.filter((device) => device.online === true)
       }
   }
-  async deleteRoomDevice(user_id: UUID,home_id :UUID,room_id : UUID,listDevice : AddDeviceToRoomDto){
+  async deleteRoomDevice(user_id: UUID,home_id :UUID,room_id : UUID,device_id : UUID){
     const isHomeOwner = await this.isHomeOwner(user_id, home_id );
     if(isHomeOwner.result == true){
       const room = await this.roomService.roomRepository.findOne({where : {id : room_id}, relations : ["devices"]});
-      room.devices = room.devices.filter((device) => !listDevice.device_ids.includes(device.id))
+      room.devices = room.devices.filter((device) => device.id != device_id);
+      const device = await this.roomService.deviceService.deviceRepositoty.findOne({where :{id :device_id}});
+      device.online = false;
+      await this.roomService.deviceService.deviceRepositoty.save(device);
       await this.roomService.roomRepository.save(room);
       return {
         result : true
@@ -502,5 +506,89 @@ export class HomeService extends TypeOrmCrudService<Home> {
     }
     return isHomeOwner;
   }
-  
+  @Transactional()
+  async registerDevice(registerDeviceDto : RegisterDeviceDto){
+    const device = await this.roomService.deviceService.deviceRepositoty.findOne({where : {id : registerDeviceDto.deviceId}});
+    if(!device){
+      return {
+        result : "false",
+        message : "device doesn't exist"
+      }
+    }
+    const room = await this.roomService.roomRepository.findOne({where : {id : registerDeviceDto.roomId}, relations : ['home.owner']});
+    if(!room){
+      return {
+        result : "false",
+        message : "room doesn't exist"
+      }
+    }
+    device.room = room;
+    await this.roomService.deviceService.deviceRepositoty.save(device);
+    const user_id = room.home.owner.id;
+    const tokens = await this.userService.queryUserDeviceLogin(user_id);
+    const title = "add device";
+    const body = device.id;
+    const notification = await this.notificationService.notificationRepository.create({
+      title : title,
+      body : body
+    })
+    await this.notificationService.notificationRepository.save(notification);
+    await this.roomService.deviceService.sendMessage(registerDeviceDto.deviceId,registerDeviceDto.roomId);
+    
+    if(tokens.deviceTokens){
+      await this.notificationService.sendNotificationToMutilToken(tokens.deviceTokens,title,body);
+    }
+    return {
+      result : true
+    }
+  }
+  @Transactional()
+  async controlMutilDevices(controlDtos : ControlDto[], userId : UUID){
+    try {
+      controlDtos.forEach(controlDto => { 
+        this.controlDevice(controlDto,userId);
+      });
+      return {
+        result : true,
+      }
+    } catch (error) {
+      return {
+        result : false,
+        message : error,
+      }
+    }
+  }
+  @Transactional()
+  async controlDevice(controlDto : ControlDto, userId : UUID){
+    const device = await this.roomService.deviceService.deviceRepositoty.findOne({where : {id : controlDto.deviceId, online : true},relations : ['room.home.owner','room.home.members.user']});
+    console.log(device.room);
+    const owner = device.room.home.owner;
+    const members = device.room.home.members;
+    if(userId != owner.id){
+      members.forEach(member => {
+        if(userId != member.user.id){
+          return {
+            result : false,
+            message : "You must be a member in home",
+          }
+        }
+      });
+    }
+    // try {
+      let topic = "roomId/"+device.room.id.toString() + "/deviceId/"+device.id.toString()+"/control";
+      let value = convertValue(device.code,controlDto.value).toString();
+      await this.roomService.deviceService.sendMessage(topic,value);
+      device.value = controlDto.value;
+      console.log(device.value);
+      await this.roomService.deviceService.deviceRepositoty.save(device);
+      return {
+        result : true,
+      }
+    // } catch (error) {
+    //   return {
+    //     result : false,
+    //     message : error
+    //   };
+    // }
+  }
 }

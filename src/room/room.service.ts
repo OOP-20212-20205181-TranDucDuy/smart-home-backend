@@ -6,9 +6,11 @@ import { Repository } from 'typeorm';
 import { Home } from 'src/home/entities/home.entity';
 import { Room } from './entities/room.entity';
 import { UUID } from 'crypto';
+import { DeviceService } from 'src/device/device.service';
 
 @Injectable()
 export class RoomService {
-  constructor(@InjectRepository(Room) public readonly roomRepository : Repository<Room>,){
+  constructor(@InjectRepository(Room) public readonly roomRepository : Repository<Room>,
+  public deviceService : DeviceService){
   }
 }

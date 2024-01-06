@@ -68,27 +68,33 @@ export class NotificationService {
         throw error;
       }
     }
-    async sendNotificationToMutilToken(tokens : string[], title: string, body: string) {
-        const message = {
-          notification: {
-            title,
-            body,
-          },
-          tokens : tokens,
-        };
-        try {
-          const response = await this.app.messaging().sendEachForMulticast(message);
-          console.log('Notification sent successfully to topic:', response);
-          return {
-            response : {
-                response,
-            }
-          }
-        } catch (error) {
-          console.error('Error sending notification to topic:', error);
-          throw error;
-        }
+    async sendNotificationToMutilToken(tokens: string[], title: string, body: string) {
+      if (!tokens.length) {
+          throw new Error('Tokens array is empty.');
       }
+  
+      const message = {
+          notification: {
+              title,
+              body,
+          },
+          tokens, // Assuming this is the correct structure for your method
+      };
+  
+      try {
+          const response = await this.app.messaging().sendEachForMulticast(message);
+          console.log('Notifications sent successfully:', response);
+          console.log('Message:', message);
+          return {
+              response: {
+                  message,
+              },
+          };
+      } catch (error) {
+          console.error('Error sending notifications:', error);
+          throw error;
+      }
+    }
     async sendMultiMessageToMutilToken(notifications : Notification[],token : string){
       const messages = [];
       notifications.forEach(notification => {

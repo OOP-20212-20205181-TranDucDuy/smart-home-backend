@@ -1,8 +1,8 @@
 import { UUID } from "crypto";
 import { Home } from "src/home/entities/home.entity";
 import { Room } from "src/room/entities/room.entity";
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import { Status } from "./status.entity";
+import { Column, CreateDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { deviceCode } from "../type/enum";
 
 @Entity()
 export class Device {
@@ -38,11 +38,12 @@ export class Device {
     online : boolean;
     @Column({nullable: true})
     icon : string;
+    @Column({nullable: true})
+    value : string;
+    @Column({nullable:true})
+    code : deviceCode;
     @OneToMany(() => Device, (device) => device.sub_device,{nullable : true})
     sub_device : Device[];
-    @ManyToMany(() => Status ,(status) => status.devices)
-    @JoinTable()
-    status : Status[]
     @ManyToOne(() => Room, (room) => room.devices,{nullable : true ,onDelete : 'CASCADE'})
     room : Room;
 }
