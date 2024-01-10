@@ -1,5 +1,5 @@
 import { type } from "os"
-import { deviceCode, lightStatus } from "./enum"
+import { color, deviceCode, lightStatus } from "./enum"
 
 export type LightDevice = {
     lightStatus : lightStatus,
@@ -9,9 +9,7 @@ export type TemperatureSensor = {
     humority : number
 }
 export type Rbg = {
-    blue : number,
-    red : number,
-    green : number
+    color : color
 }
 export function convertValue (code: deviceCode , value : string) {
     if(code === deviceCode.LIGHT_DEVICE){
@@ -27,6 +25,6 @@ export function convertValue (code: deviceCode , value : string) {
     if(code === deviceCode.RBG){
         const data: any = JSON.parse(value);
         const typedData: Rbg = data;
-        return typedData.blue + "-" + typedData.red + "-" + typedData.green;
+        return typedData.color;
     }
 }

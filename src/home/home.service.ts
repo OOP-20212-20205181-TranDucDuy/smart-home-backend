@@ -4,7 +4,7 @@ import { Home } from "./entities/home.entity";
 import { FindOptionsWhere, FindOptionsWhereProperty, In, Repository } from "typeorm";
 import { User } from "src/user/entities/user.entity";
 import { UserService } from "src/user/user.service";
-import { BadRequestException, InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, InternalServerErrorException, Logger } from "@nestjs/common";
 import { CreateHomeDto } from "./dto/request/create-home.dto";
 import { UUID } from "crypto";
 import { UpdateHomeDto } from "./dto/request/update-home.dto";
@@ -23,8 +23,10 @@ import { RegisterDeviceDto } from "./dto/request/register-device.dto";
 import { ControlDto } from "./dto/control.dto";
 import { convertValue } from "src/device/type/device.type";
 import { deviceCode } from "src/device/type/enum";
+import { DeviceGateway } from "src/device/device.gateway";
 
 export class HomeService extends TypeOrmCrudService<Home> {
+  private logger: Logger = new Logger(HomeService.name);
   constructor(@InjectRepository(Home) public readonly homeRepositoty : Repository<Home>,
   @InjectRepository(HomeMember) public readonly homeMemberRepositoty : Repository<HomeMember>,
   public userService : UserService,
@@ -508,6 +510,7 @@ export class HomeService extends TypeOrmCrudService<Home> {
   }
   @Transactional()
   async registerDevice(registerDeviceDto : RegisterDeviceDto){
+    this.logger.debug(registerDeviceDto.roomId);
     const device = await this.roomService.deviceService.deviceRepositoty.findOne({where : {id : registerDeviceDto.deviceId}});
     if(!device){
       return {
@@ -535,9 +538,9 @@ export class HomeService extends TypeOrmCrudService<Home> {
     await this.notificationService.notificationRepository.save(notification);
     await this.roomService.deviceService.sendMessage(registerDeviceDto.deviceId,registerDeviceDto.roomId);
     
-    if(tokens.deviceTokens){
-      await this.notificationService.sendNotificationToMutilToken(tokens.deviceTokens,title,body);
-    }
+    // if(tokens.deviceTokens){
+    //   await this.notificationService.sendNotificationToMutilToken(tokens.deviceTokens,title,body);
+    // }
     return {
       result : true
     }

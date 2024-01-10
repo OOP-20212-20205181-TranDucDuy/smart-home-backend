@@ -65,7 +65,7 @@ import { addTransactionalDataSource } from 'typeorm-transactional';
     HomeModule,
     DeviceModule,
     RoomModule,
-    NotificationModule],
+    NotificationModule,],
   controllers: [AppController],
   providers: [Logger,
     {

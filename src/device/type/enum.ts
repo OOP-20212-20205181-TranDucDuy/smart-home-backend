@@ -7,3 +7,8 @@ export enum deviceCode {
     TEMPERATURE_SENSOR = 1,
     RBG = 2
 }
+export enum color {
+    RED = "red",
+    GREEN = "green",
+    BLUE = "blue"
+}

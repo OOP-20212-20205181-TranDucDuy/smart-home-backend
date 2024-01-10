@@ -11,6 +11,7 @@ import { HttpAuthGuard } from 'src/auth/guard/auth.guard';
 import { Ctx, MessagePattern, MqttContext, Payload } from '@nestjs/microservices';
 import { v4 as uuidv4, parse as uuidParse } from 'uuid';
 import { UUID } from 'crypto';
+import { DeviceGateway } from './device.gateway';
 @Crud({
   model: { 
     type: Device,
@@ -35,7 +36,8 @@ import { UUID } from 'crypto';
 })
 @Controller('device')
 export class DeviceController implements CrudController<Device> {
-  constructor(public service: DeviceService) {}
+  constructor(public service: DeviceService,
+    private deviceGateway : DeviceGateway) {}
   get base(): CrudController<Device> {
     return this;
   }
@@ -46,13 +48,15 @@ export class DeviceController implements CrudController<Device> {
   ){
     return await this.base.getManyBase(req);
   }
-
-  @MessagePattern('add-device/+')
-  async addDevice(@Payload() data: string) {
-    console.log(data);
-    return {
-      message : `${data}`
-    };
+  @Roles(Role.ADMIN)
+  @Post()
+  async createDevice(@Body() createDeviceDto : CreateDeviceDto){
+    return await this.service.createDevice(createDeviceDto);
+  }
+  @Roles(Role.ADMIN)
+  @Delete('/:deviceId')
+  async deleteDevice(@Param('deviceId') deviceId : UUID ){
+    return await this.service.deleteDevice(deviceId);
   }
   @MessagePattern('roomId/+/deviceId/+/connect')
   async getConnectFromDevice(@Payload() data: string, @Ctx() context: MqttContext){
@@ -66,12 +70,9 @@ export class DeviceController implements CrudController<Device> {
     const topic = context.getTopic();
     const [roomId, deviceId] = topic.split('/').slice(2, 4);
     const id = uuidParse(deviceId);
-    return await this.service.saveData(id,data);
-  }
-  @UseGuards(HttpAuthGuard)
-  @Get('/:deviceId')
-  async loadDevice(@Param('deviceId') device_id : UUID){
-    return await this.service.loadDeviceData(device_id);
+    await this.service.saveData(id,data);
+    await this.deviceGateway.loadValue(deviceId);
+    
   }
 
   // @Roles(Role.USER)

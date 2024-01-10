@@ -7,6 +7,8 @@ import { WinstonModule } from 'nest-winston';
 import * as dotenv from 'dotenv'
 import { initializeTransactionalContext } from 'typeorm-transactional';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { SocketIOAdapter } from './socket-io-adapter';
+import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   dotenv.config();
   initializeTransactionalContext();
@@ -28,9 +30,10 @@ async function bootstrap() {
   app.enableVersioning({
     type: VersioningType.URI,
   });
-
+  const configService = app.get(ConfigService);
   app.setGlobalPrefix('api/v2');
   app.enableCors();
+  app.useWebSocketAdapter(new SocketIOAdapter(app, configService));
   const config = new DocumentBuilder()
     .setTitle('Smart Home')
     .setDescription('The trainning API description')
